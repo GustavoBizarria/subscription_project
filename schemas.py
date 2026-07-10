@@ -11,7 +11,7 @@ class SubscriptionBase(BaseModel):
 class SubscriptionCreate(SubscriptionBase):
     pass
 
-class SubscriptionResponse(AssinaturaBase):
+class SubscriptionResponse(SubscriptionBase):
     id: int
     active: bool
 
