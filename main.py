@@ -33,7 +33,7 @@ def update(subscription_id: int, dados: schemas.SubscriptionCreate, db: Session 
         raise HTTPException(status_code=404, detail="subscription not found")
     return result
 
-@app.delete("/subscription/{subscription_id}", responde_model=schemas.SubscriptionResponse)
+@app.delete("/subscription/{subscription_id}", response_model=schemas.SubscriptionResponse)
 def delete(subscription_id: int, db:Session = Depends(get_db)):
     result = crud.delete_subscription(db, subscription_id)
     if result is None:
