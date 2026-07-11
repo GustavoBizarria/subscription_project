@@ -24,7 +24,7 @@ def list(db: Session = Depends(get_db)):
 
 @app.get("/subscription/{subscription_id}", response_model=schemas.SubscriptionResponse)
 def search(subscription_id: int, db: Session = Depends(get_db)):
-    result = crud.get_subscription(db, subscription_id)  # supondo esse nome no crud.py
+    result = crud.search_subscription(db, subscription_id)  # supondo esse nome no crud.py
     if result is None:
         raise HTTPException(status_code=404, detail="Subscription not found")
     return result
