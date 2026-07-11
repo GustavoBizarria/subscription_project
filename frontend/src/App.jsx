@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { Plus, Calendar, X } from "lucide-react";
+import { Plus, Calendar, X, Pencil } from "lucide-react";
 
 // ---- Connects to the real FastAPI backend ----
 const API_URL = "http://localhost:8000";
@@ -35,7 +35,8 @@ export default function SubscriptionDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", category: "Streaming", value: "", cycle_charge: "monthly" });
+  const [editingId, setEditingId] = useState(null); // null = creating new, otherwise the id being edited
+  const [form, setForm] = useState({ name: "", category: "Streaming", value: "", cycle_charge: "monthly", first_date_charge: new Date().toISOString().split("T")[0] });
 
   // ---- Load subscriptions from the API on mount ----
   useEffect(() => {
@@ -73,32 +74,67 @@ export default function SubscriptionDashboard() {
     [subs]
   );
 
-  // ---- POST a new subscription to the API ----
-  function addSub(e) {
-    e.preventDefault();
-    if (!form.name || !form.value) return;
+  const emptyForm = { name: "", category: "Streaming", value: "", cycle_charge: "monthly", first_date_charge: new Date().toISOString().split("T")[0] };
 
-    fetch(`${API_URL}/subscription`, {
-      method: "POST",
+  // ---- Open the form pre-filled to create a new entry ----
+  function openNewForm() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setShowForm(true);
+  }
+
+  // ---- Open the form pre-filled with an existing entry's data ----
+  function startEdit(sub) {
+    setEditingId(sub.id);
+    setForm({
+      name: sub.name,
+      category: sub.category,
+      value: String(sub.value),
+      cycle_charge: sub.cycle_charge,
+      first_date_charge: sub.first_date_charge,
+    });
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(emptyForm);
+  }
+
+  // ---- POST a new subscription, or PUT an update to an existing one ----
+  function saveSub(e) {
+    e.preventDefault();
+    if (!form.name || !form.value || !form.first_date_charge) return;
+
+    const isEditing = editingId !== null;
+    const url = isEditing ? `${API_URL}/subscription/${editingId}` : `${API_URL}/subscription`;
+    const method = isEditing ? "PUT" : "POST";
+
+    fetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: form.name,
         category: form.category,
         value: parseFloat(form.value),
         cycle_charge: form.cycle_charge,
-        first_date_charge: new Date().toISOString().split("T")[0],
+        first_date_charge: form.first_date_charge,
       }),
     })
       .then((res) => {
         if (!res.ok) throw new Error(`Server responded ${res.status}`);
         return res.json();
       })
-      .then((created) => {
-        setSubs((prev) => [...prev, created]);
-        setForm({ name: "", category: "Streaming", value: "", cycle_charge: "monthly" });
-        setShowForm(false);
+      .then((result) => {
+        if (isEditing) {
+          setSubs((prev) => prev.map((s) => (s.id === editingId ? result : s)));
+        } else {
+          setSubs((prev) => [...prev, result]);
+        }
+        closeForm();
       })
-      .catch((err) => console.error("Failed to create subscription:", err));
+      .catch((err) => console.error(isEditing ? "Failed to update subscription:" : "Failed to create subscription:", err));
   }
 
   // ---- DELETE a subscription via the API ----
@@ -160,7 +196,7 @@ export default function SubscriptionDashboard() {
             <h1 className="receipt" style={{ fontSize: 30, margin: 0, fontWeight: 700, color: "#f4f1ea" }}>Subscription Ledger</h1>
           </div>
           <button
-            onClick={() => setShowForm(true)}
+            onClick={openNewForm}
             style={{
               display: "flex", alignItems: "center", gap: 8,
               background: "#c65d3b", color: "#0f1210", border: "none",
@@ -196,7 +232,7 @@ export default function SubscriptionDashboard() {
               {subs.map((s, i) => {
                 return (
                   <div key={s.id} className="ledger-row" style={{
-                    display: "grid", gridTemplateColumns: "1fr auto auto",
+                    display: "grid", gridTemplateColumns: "1fr auto auto auto",
                     gap: 12, alignItems: "center", padding: "12px 14px",
                     borderBottom: i < subs.length - 1 ? "1px dashed #3a3f38" : "none",
                   }}>
@@ -209,6 +245,9 @@ export default function SubscriptionDashboard() {
                     <div style={{ fontSize: 13, color: "#c9c3b3", textAlign: "right", minWidth: 70 }}>
                       {currency(monthlyCost(s))}<span style={{ fontSize: 10, color: "#8a8577" }}>/mo</span>
                     </div>
+                    <button onClick={() => startEdit(s)} style={{ background: "none", border: "none", color: "#5a5f57", cursor: "pointer", padding: 4 }}>
+                      <Pencil size={13} />
+                    </button>
                     <button onClick={() => removeSub(s.id)} style={{ background: "none", border: "none", color: "#5a5f57", cursor: "pointer", padding: 4 }}>
                       <X size={14} />
                     </button>
@@ -282,13 +321,13 @@ export default function SubscriptionDashboard() {
           position: "fixed", inset: 0, background: "rgba(15,18,16,0.85)",
           display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
         }}>
-          <form onSubmit={addSub} style={{
+          <form onSubmit={saveSub} style={{
             background: "#161a17", border: "1px solid #3a3f38",
             padding: 24, width: "100%", maxWidth: 360,
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-              <div className="receipt" style={{ fontSize: 18, fontWeight: 700, color: "#f4f1ea" }}>New Entry</div>
-              <button type="button" onClick={() => setShowForm(false)} style={{ background: "none", border: "none", color: "#8a8577", cursor: "pointer" }}>
+              <div className="receipt" style={{ fontSize: 18, fontWeight: 700, color: "#f4f1ea" }}>{editingId !== null ? "Edit Entry" : "New Entry"}</div>
+              <button type="button" onClick={closeForm} style={{ background: "none", border: "none", color: "#8a8577", cursor: "pointer" }}>
                 <X size={18} />
               </button>
             </div>
@@ -327,18 +366,26 @@ export default function SubscriptionDashboard() {
             <select
               value={form.cycle_charge}
               onChange={(e) => setForm({ ...form, cycle_charge: e.target.value })}
-              style={{ width: "100%", background: "#0f1210", border: "1px solid #3a3f38", color: "#f4f1ea", padding: "8px 10px", marginBottom: 20, fontSize: 13 }}
+              style={{ width: "100%", background: "#0f1210", border: "1px solid #3a3f38", color: "#f4f1ea", padding: "8px 10px", marginBottom: 14, fontSize: 13 }}
             >
               <option value="monthly">Monthly</option>
               <option value="quarterly">Quarterly</option>
               <option value="yearly">Yearly</option>
             </select>
 
+            <label style={{ fontSize: 11, color: "#8a8577", display: "block", marginBottom: 4 }}>FIRST CHARGE DATE</label>
+            <input
+              value={form.first_date_charge}
+              onChange={(e) => setForm({ ...form, first_date_charge: e.target.value })}
+              type="date"
+              style={{ width: "100%", background: "#0f1210", border: "1px solid #3a3f38", color: "#f4f1ea", padding: "8px 10px", marginBottom: 20, fontSize: 13, colorScheme: "dark" }}
+            />
+
             <button type="submit" style={{
               width: "100%", background: "#c65d3b", color: "#0f1210",
               border: "none", padding: "10px", fontWeight: 700, cursor: "pointer", fontSize: 13,
             }}>
-              SAVE ENTRY
+              {editingId !== null ? "SAVE CHANGES" : "SAVE ENTRY"}
             </button>
           </form>
         </div>
