@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from datetime import date
 
 class SubscriptionBase(BaseModel):
-    nome: str
+    name: str
     category: str
     value: float 
     cycle_charge: str
