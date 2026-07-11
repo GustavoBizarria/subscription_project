@@ -5,7 +5,7 @@ class Subscription(Base):
     __tablename__ = "subscription"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, Index=True)
+    name = Column(String, index=True)
     category = Column(String)
     value = Column(Float)
     cycle_charge = Column(String)
