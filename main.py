@@ -26,7 +26,7 @@ def list(db: Session = Depends(get_db)):
 def search(subscription_id: int, db: Session = Depends(get_db)):
     return crud.create_subscription(db)
 
-@app.put("//{subscription_id}", response_model=schemas.SubscriptionResponse)
+@app.put("/subscription/{subscription_id}", response_model=schemas.SubscriptionResponse)
 def update(subscription_id: int, dados: schemas.SubscriptionCreate, db: Session = Depends(get_db)):
     result = crud.update_subscription(db, subscription_id, dados)
     if result is None:
