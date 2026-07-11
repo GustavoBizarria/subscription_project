@@ -7,6 +7,16 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 def get_db():
     db = SessionLocal()
     try:
@@ -24,7 +34,7 @@ def list(db: Session = Depends(get_db)):
 
 @app.get("/subscription/{subscription_id}", response_model=schemas.SubscriptionResponse)
 def search(subscription_id: int, db: Session = Depends(get_db)):
-    result = crud.search_subscription(db, subscription_id)  # supondo esse nome no crud.py
+    result = crud.search_subscription(db, subscription_id)  
     if result is None:
         raise HTTPException(status_code=404, detail="Subscription not found")
     return result
