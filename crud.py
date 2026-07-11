@@ -18,6 +18,17 @@ def update_subscription(db: Session, subscription_id: int, data: schemas.Subscri
     db_subscription = search_subscription(db, subscription_id)
     if db_subscription is None:
         return None
+    for field, value in data.model_dump().items():
+        setattr(db_subscription, field, value)
+    db.commit()
+    db.refresh(db_subscription)
+    return db_subscription
+
+
+def delete_subscription(db: Session, subscription_id: int):
+    db_subscription = search_subscription(db, subscription_id)
+    if db_subscription is None:
+        return None
     db.delete(db_subscription)
     db.commit()
     return db_subscription
